@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+
+model Users {
+  id                    String        @id @default(uuid())
+  telegram_id          BigInt        @unique
+  username             String?
+  gender               String?
+  isTermsPolicyAccepted Boolean       @default(false)
+  created_at           DateTime      @default(now())
+  updated_at           DateTime      @default(now()) @updatedAt
+  
+  // One-to-one relation
+  settings             UserSettings?
+}
+
+model UserSettings {
+  id           String   @id @default(uuid())
+  user_id      String   @unique
+  tone         String?
+  nsfw_enabled Boolean  @default(false)
+  language     String   @default("ru")
+  updated_at   DateTime @default(now()) @updatedAt
+  
+  // One-to-one relation
+  user         Users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
