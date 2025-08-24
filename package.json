@@ -13,6 +13,7 @@
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.56.0",
     "@telegram-apps/sdk-react": "^3.3.6",
+    "@telegram-apps/telegram-ui": "^2.1.9",
     "next": "15.5.0",
     "react": "19.1.0",
     "react-dom": "19.1.0"
