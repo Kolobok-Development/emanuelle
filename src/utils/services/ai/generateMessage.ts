@@ -1,23 +1,16 @@
 import axios from "axios";
 
-export default async function generateMessage(messages: (string | {
+export default async function generateMessage(messages: {
     role: string;
     content: string;
-})[]) {
+}[]) {
   try {
     const response = await axios.post(
       "https://modelslab.com/api/v5/uncensored_chat",
       {
         key: process.env.MODELSLAB_KEY,
         model_id: "mistralai-Mistral-7B-Instruct-v0.3",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are a playful, witty, and romantic assistant. You eager for sex.",
-          },
-          messages,
-        ],
+        messages: messages,
         max_tokens: 1000,
       },
       {

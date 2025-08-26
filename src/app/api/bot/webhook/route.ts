@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import generateMessage from '@/utils/services/ai/generateMessage';
 
 interface TelegramMessage {
   chat: { id: number };
@@ -60,7 +61,7 @@ async function generateCompanionResponse(userMessage: string, username?: string)
   
   if (mentionedCompanion) {
     // User explicitly mentioned a companion - use that one
-    return generateResponseForCompanion(userMessage, mentionedCompanion, username);
+    return await generateResponseForCompanion(userMessage, mentionedCompanion, username);
   }
 
   // Default to Emanuelle if no specific companion mentioned
@@ -72,7 +73,7 @@ async function generateCompanionResponse(userMessage: string, username?: string)
     energyCost: 5 
   };
   
-  return generateResponseForCompanion(userMessage, defaultCompanion, username);
+  return await generateResponseForCompanion(userMessage, defaultCompanion, username);
 }
 
 function getMentionedCompanion(message: string): Companion | null {
@@ -100,37 +101,73 @@ function getMentionedCompanion(message: string): Companion | null {
   return null;
 }
 
-function generateResponseForCompanion(userMessage: string, companion: Companion, username?: string): string {
-  let response = `${companion.avatar} <b>${companion.name}</b>\n\n`;
-  
-  // Generate companion-specific response based on personality
-  switch (companion.id) {
-    case 'emanuelle':
-      response += `Hello ${username || 'there'}! I'm Emanuelle, your friendly AI companion. I'm here to help you with everyday conversations and tasks. What would you like to talk about today?`;
-      break;
-    case 'sophia':
-      response += `Greetings! I'm Sophia, and I love intellectual challenges. Your message "${userMessage}" is quite interesting. Let me analyze this... What specific aspect would you like to explore further?`;
-      break;
-    case 'luna':
-      response += `✨ Hello! I'm Luna, and I'm feeling very creative today! Your message has inspired me. Let's explore the artistic and imaginative side of things together. What creative project or idea would you like to discuss?`;
-      break;
-    case 'atlas':
-      response += `🗺️ Adventure awaits! I'm Atlas, and I'm always ready for exploration. Your message makes me think of new journeys and discoveries. Where would you like to explore today - real places, fictional worlds, or new ideas?`;
-      break;
-    case 'nova':
-      response += `⭐ Greetings! I'm Nova, and I'm here to provide sophisticated insights. Your message shows thoughtful consideration. Let me offer you some advanced perspectives on this topic. What specific aspect would you like me to elaborate on?`;
-      break;
-    case 'zen':
-      response += `🧘 Namaste! I'm Zen, and I'm here to help you find balance and clarity. Your message resonates with me. Let's explore this together with mindfulness and wisdom. What would bring you peace and understanding right now?`;
-      break;
-    default:
-      response += `Hello! I'm here to help you. Your message "${userMessage}" is interesting. How can I assist you today?`;
-  }
+async function generateResponseForCompanion(userMessage: string, companion: Companion, username?: string): Promise<string> {
+  try {
+    console.log(`Generating AI response for companion: ${companion.name}`);
+    console.log(`User message: ${userMessage}`);
+    
+    // Construct the system message for the AI service
+    const systemMessage = `You are ${companion.name}, an AI companion with the following personality: ${companion.personality}. 
 
-  // Add companion info and energy cost (without HTML tags)
-  response += `\n\n💬 ${companion.personality}\n⚡ Energy cost: ${companion.energyCost}`;
-  
-  return response;
+You should respond in character as ${companion.name}, maintaining your unique personality traits. Be engaging, helpful, and true to your character.
+
+Current user: ${username || 'User'}`;
+
+    // Prepare messages for the AI service
+    const messages = [
+      {
+        role: "system",
+        content: systemMessage
+      },
+      {
+        role: "user", 
+        content: userMessage
+      }
+    ];
+
+    console.log('Sending messages to AI service:', JSON.stringify(messages, null, 2));
+
+    // Generate AI response
+    const aiResponse = await generateMessage(messages);
+    
+    console.log('AI service response:', JSON.stringify(aiResponse, null, 2));
+    
+    if (aiResponse && aiResponse.choices && aiResponse.choices[0]) {
+      const responseText = aiResponse.choices[0].message?.content || aiResponse.choices[0].text || 'Sorry, I could not generate a response.';
+      
+      console.log('Generated response text:', responseText);
+      
+      // Format the response with companion info
+      let formattedResponse = `${companion.avatar} <b>${companion.name}</b>\n\n`;
+      formattedResponse += responseText;
+      formattedResponse += `\n\n💬 ${companion.personality}\n⚡ Energy cost: ${companion.energyCost}`;
+      
+      return formattedResponse;
+    } else if (aiResponse && aiResponse.response) {
+      // Alternative response format
+      const responseText = aiResponse.response || 'Sorry, I could not generate a response.';
+      
+      console.log('Generated response text (alternative format):', responseText);
+      
+      // Format the response with companion info
+      let formattedResponse = `${companion.avatar} <b>${companion.name}</b>\n\n`;
+      formattedResponse += responseText;
+      formattedResponse += `\n\n💬 ${companion.personality}\n⚡ Energy cost: ${companion.energyCost}`;
+      
+      return formattedResponse;
+    } else {
+      console.log('AI service returned invalid response, using fallback');
+      console.log('Full AI response:', JSON.stringify(aiResponse, null, 2));
+      // Fallback response if AI service fails
+      return aiResponse.message;
+    }
+    
+  } catch (error) {
+    console.error('Error generating AI response:', error);
+    
+    // Fallback response on error
+    return `${companion.avatar} <b>${companion.name}</b>\n\nHello ${username || 'there'}! I'm ${companion.name}. ${companion.personality}\n\n💬 ${companion.personality}\n⚡ Energy cost: ${companion.energyCost}`;
+  }
 }
 
 async function handleCommand(command: string, chatId: number) {
