@@ -8,7 +8,18 @@ import { AI_COMPANIONS, AICompanion } from '@/data/ai-companions';
 export default function Home() {
   const [selectedCompanion, setSelectedCompanion] = useState<AICompanion | null>(null);
   const [showChat, setShowChat] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{
+    id: number;
+    telegram_id: number;
+    username?: string;
+    subscription_tier: string;
+    subscription_expires?: string;
+    settings?: {
+      tone?: string;
+      language?: string;
+      theme?: string;
+    };
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const rawInitData = useRawInitData();
 
@@ -136,7 +147,7 @@ export default function Home() {
               <span className="text-white text-2xl">🤖</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              If you're already in Telegram, try refreshing the page
+              If you&apos;re already in Telegram, try refreshing the page
             </p>
           </Card.Cell>
         </Card>
@@ -186,7 +197,7 @@ export default function Home() {
                       <span className="text-white text-lg">{selectedCompanion.avatar}</span>
                     </div>
                     <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 flex-1">
-                      <p className="text-sm">Hello {user.username || 'there'}! I'm {selectedCompanion.name}. {selectedCompanion.description}</p>
+                      <p className="text-sm">Hello {user.username || 'there'}! I&apos;m {selectedCompanion.name}. {selectedCompanion.description}</p>
                     </div>
                   </div>
                   
