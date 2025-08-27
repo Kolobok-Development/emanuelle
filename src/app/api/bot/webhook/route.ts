@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import generateMessage from '@/utils/services/ai/generateMessage';
+import { AI_COMPANIONS } from '@/data/ai-companions';
+import { queueAIResponse } from '@/lib/queues/ai-response-queue';
+import { sendTelegramMessage, sendChatAction } from '@/lib/telegram';
 
 interface TelegramMessage {
+  message_id: number;
   chat: { id: number };
   text: string;
-  from: { id: number; username?: string };
+  from: { id: number; username?: string; first_name?: string };
 }
 
 interface Companion {
@@ -32,63 +35,58 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleMessage(message: TelegramMessage) {
-  const { chat, text, from } = message;
+  const chatId = message.chat.id;
+  const text = message.text;
+  const username = message.from?.username || message.from?.first_name;
   
-  if (!text || !from) return;
+  if (!text) return;
+
+  console.log(`Received message in chat ${chatId}: ${text}`);
+
+  // Show typing indicator immediately
+  await sendChatAction(chatId, 'typing');
 
   try {
-    // Check if it's a command
-    if (text.startsWith('/')) {
-      await handleCommand(text, chat.id);
-      return;
+    // Determine which companion should respond
+    const companion = await determineCompanionAndRespond(chatId, text, username);
+    
+    if (companion) {
+      // Queue the AI response instead of generating it directly
+      await queueAIResponse(chatId, text, companion, username, message.message_id);
+      
+      console.log(`AI response queued for companion: ${companion.name}`);
+    } else {
+      // Handle commands or unknown messages
+      await handleCommand(chatId, text, username);
     }
-
-    // Generate AI response with proper companion selection
-    const aiResponse = await generateCompanionResponse(text, from.username);
-
-    // Send response back to Telegram
-    await sendTelegramMessage(chat.id, aiResponse);
-
   } catch (error) {
     console.error('Error handling message:', error);
-    await sendTelegramMessage(chat.id, "Sorry, I'm having trouble processing your message right now. Please try again later.");
+    await sendTelegramMessage(chatId, '❌ Sorry, something went wrong. Please try again.');
   }
 }
 
-async function generateCompanionResponse(userMessage: string, username?: string): Promise<string> {
+async function determineCompanionAndRespond(chatId: number, text: string, username?: string): Promise<Companion | null> {
+  // Check if it's a command
+  if (text.startsWith('/')) {
+    await handleCommand(chatId, text, username);
+    return null;
+  }
+
   // Check if user mentioned a specific companion
-  const mentionedCompanion = getMentionedCompanion(userMessage);
+  const mentionedCompanion = getMentionedCompanion(text);
   
   if (mentionedCompanion) {
-    // User explicitly mentioned a companion - use that one
-    return await generateResponseForCompanion(userMessage, mentionedCompanion, username);
+    return mentionedCompanion;
   }
 
   // Default to Emanuelle if no specific companion mentioned
-  const defaultCompanion: Companion = { 
-    id: 'emanuelle', 
-    name: 'Emanuelle', 
-    avatar: '🤖', 
-    personality: 'Friendly, helpful, and always ready to chat',
-    energyCost: 5 
-  };
-  
-  return await generateResponseForCompanion(userMessage, defaultCompanion, username);
+  return AI_COMPANIONS.find(c => c.id === 'emanuelle') || null;
 }
 
 function getMentionedCompanion(message: string): Companion | null {
-  const companions: Companion[] = [
-    { id: 'emanuelle', name: 'Emanuelle', avatar: '🤖', personality: 'Friendly, helpful, and always ready to chat', energyCost: 5 },
-    { id: 'sophia', name: 'Sophia', avatar: '🧠', personality: 'Wise, analytical, and loves intellectual challenges', energyCost: 10 },
-    { id: 'luna', name: 'Luna', avatar: '🌙', personality: 'Creative, imaginative, and inspiring', energyCost: 8 },
-    { id: 'atlas', name: 'Atlas', avatar: '🗺️', personality: 'Adventurous, curious, and loves to explore', energyCost: 12 },
-    { id: 'nova', name: 'Nova', avatar: '⭐', personality: 'Sophisticated, insightful, and highly intelligent', energyCost: 15 },
-    { id: 'zen', name: 'Zen', avatar: '🧘', personality: 'Customizable, adaptive, and deeply personal', energyCost: 20 }
-  ];
-
   const lowerMessage = message.toLowerCase();
   
-  for (const companion of companions) {
+  for (const companion of AI_COMPANIONS) {
     if (lowerMessage.includes(companion.name.toLowerCase()) || 
         lowerMessage.includes(companion.id.toLowerCase()) ||
         lowerMessage.includes('chat with ' + companion.name.toLowerCase()) ||
@@ -101,168 +99,24 @@ function getMentionedCompanion(message: string): Companion | null {
   return null;
 }
 
-async function generateResponseForCompanion(userMessage: string, companion: Companion, username?: string): Promise<string> {
-  try {
-    console.log(`Generating AI response for companion: ${companion.name}`);
-    console.log(`User message: ${userMessage}`);
+async function handleCommand(chatId: number, command: string, username?: string) {
+  const lowerCommand = command.toLowerCase();
+  
+  if (lowerCommand === '/start') {
+    const welcomeMessage = `👋 Welcome ${username || 'there'}! I'm your AI companion bot.\n\n💬 You can chat with me naturally, or use these commands:\n/help - Show available commands\n/companions - List available AI companions\n\nJust start typing to begin chatting!`;
+    await sendTelegramMessage(chatId, welcomeMessage);
+  } else if (lowerCommand === '/help') {
+    const helpMessage = `🤖 <b>Available Commands:</b>\n\n/start - Welcome message\n/help - Show this help\n/companions - List AI companions\n\n💡 <b>Tips:</b>\n• Mention a companion by name to chat with them\n• Example: "Chat with Sophia" or "Talk to Luna"\n• Each companion has unique personality and energy cost`;
+    await sendTelegramMessage(chatId, helpMessage);
+  } else if (lowerCommand === '/companions') {
+    const companionsList = AI_COMPANIONS.map(c => 
+      `${c.avatar} <b>${c.name}</b> - ${c.personality} (⚡ ${c.energyCost})`
+    ).join('\n\n');
     
-    // Construct the system message for the AI service
-    const systemMessage = `You are ${companion.name}, an AI companion with the following personality: ${companion.personality}. 
-
-You should respond in character as ${companion.name}, maintaining your unique personality traits. Be engaging, helpful, and true to your character.
-
-Current user: ${username || 'User'}`;
-
-    // Prepare messages for the AI service
-    const messages = [
-      {
-        role: "system",
-        content: systemMessage
-      },
-      {
-        role: "user", 
-        content: userMessage
-      }
-    ];
-
-    console.log('Sending messages to AI service:', JSON.stringify(messages, null, 2));
-
-    // Generate AI response
-    const aiResponse = await generateMessage(messages);
-    
-    console.log('AI service response:', JSON.stringify(aiResponse, null, 2));
-    
-    if (aiResponse && aiResponse.choices && aiResponse.choices[0]) {
-      const responseText = aiResponse.choices[0].message?.content || aiResponse.choices[0].text || 'Sorry, I could not generate a response.';
-      
-      console.log('Generated response text:', responseText);
-      
-      // Format the response with companion info
-      let formattedResponse = `${companion.avatar} <b>${companion.name}</b>\n\n`;
-      formattedResponse += responseText;
-      formattedResponse += `\n\n💬 ${companion.personality}\n⚡ Energy cost: ${companion.energyCost}`;
-      
-      return formattedResponse;
-    } else if (aiResponse && aiResponse.response) {
-      // Alternative response format
-      const responseText = aiResponse.response || 'Sorry, I could not generate a response.';
-      
-      console.log('Generated response text (alternative format):', responseText);
-      
-      // Format the response with companion info
-      let formattedResponse = `${companion.avatar} <b>${companion.name}</b>\n\n`;
-      formattedResponse += responseText;
-      formattedResponse += `\n\n💬 ${companion.personality}\n⚡ Energy cost: ${companion.energyCost}`;
-      
-      return formattedResponse;
-    } else {
-      console.log('AI service returned invalid response, using fallback');
-      console.log('Full AI response:', JSON.stringify(aiResponse, null, 2));
-      // Fallback response if AI service fails
-      return aiResponse.message;
-    }
-    
-  } catch (error) {
-    console.error('Error generating AI response:', error);
-    
-    // Fallback response on error
-    return `${companion.avatar} <b>${companion.name}</b>\n\nHello ${username || 'there'}! I'm ${companion.name}. ${companion.personality}\n\n💬 ${companion.personality}\n⚡ Energy cost: ${companion.energyCost}`;
-  }
-}
-
-async function handleCommand(command: string, chatId: number) {
-  try {
-    const commandName = command.split(' ')[0].substring(1);
-    
-    let response = '';
-    
-    switch (commandName) {
-      case 'start':
-        response = `🎉 Welcome! I'm your AI companion bot.
-
-I have multiple AI personalities to choose from:
-• Emanuelle - Friendly and helpful
-• Sophia - Intellectual and analytical  
-• Luna - Creative and imaginative
-• Atlas - Adventurous and curious
-• Nova - Sophisticated and insightful
-• Zen - Mindful and wise
-
-<b>How to chat with specific companions:</b>
-• Say "Chat with Sophia" to talk to Sophia
-• Say "Talk to Luna" to chat with Luna
-• Say "Switch to Atlas" to chat with Atlas
-• Just send a message to chat with Emanuelle (default)
-
-Type /help for more commands!`;
-        break;
-      case 'help':
-        response = `🤖 <b>Available Commands:</b>
-
-/start - Start the bot and get welcome message
-/help - Show this help message
-/companions - List available AI companions
-
-<b>How to chat with specific companions:</b>
-• Say "Chat with Sophia" to talk to Sophia
-• Say "Talk to Luna" to chat with Luna
-• Say "Switch to [Name]" to change companions
-• Just send a message to chat with Emanuelle (default)
-
-<b>Energy System:</b>
-Each message costs energy based on the companion you're chatting with.`;
-        break;
-      case 'companions':
-        response = `🤖 <b>Available Companions:</b>
-
-🤖 Emanuelle - Friendly and helpful (5⚡)
-🧠 Sophia - Intellectual and analytical (10⚡)
-🌙 Luna - Creative and imaginative (8⚡)
-🗺️ Atlas - Adventurous and curious (12⚡)
-⭐ Nova - Sophisticated and insightful (15⚡)
-🧘 Zen - Mindful and wise (20⚡)
-
-<b>How to chat with them:</b>
-• Say "Chat with [Name]" to start chatting
-• Say "Switch to [Name]" to change companions
-• Or just send a message to chat with Emanuelle`;
-        break;
-      default:
-        response = `Unknown command: ${commandName}. Type /help for available commands.`;
-    }
-    
-    await sendTelegramMessage(chatId, response);
-
-  } catch (error) {
-    console.error('Error handling command:', error);
-    await sendTelegramMessage(chatId, "Sorry, I'm having trouble processing your command. Please try again later.");
-  }
-}
-
-async function sendTelegramMessage(chatId: number, text: string) {
-  const botToken = process.env.TELEGRAM_BOT_KEY;
-  if (!botToken) {
-    console.error('TELEGRAM_BOT_KEY not found');
-    return;
-  }
-
-  try {
-    const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: text,
-        parse_mode: 'HTML'
-      })
-    });
-
-    if (!response.ok) {
-      console.error('Failed to send Telegram message:', await response.text());
-    }
-  } catch (error) {
-    console.error('Error sending Telegram message:', error);
+    const companionsMessage = `🤖 <b>Available AI Companions:</b>\n\n${companionsList}\n\n💡 Mention any companion by name to start chatting with them!`;
+    await sendTelegramMessage(chatId, companionsMessage);
+  } else {
+    const unknownCommandMessage = `❓ Unknown command: ${command}\n\nUse /help to see available commands.`;
+    await sendTelegramMessage(chatId, unknownCommandMessage);
   }
 }
