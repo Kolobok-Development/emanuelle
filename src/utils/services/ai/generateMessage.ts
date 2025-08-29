@@ -5,6 +5,7 @@ export default async function generateMessage(messages: {
     content: string;
 }[]) {
   try {
+    console.log("generate answer:")
     const response = await axios.post(
       "https://modelslab.com/api/v5/uncensored_chat",
       {
@@ -20,6 +21,8 @@ export default async function generateMessage(messages: {
         },
       }
     );
+
+    console.log("answer:", response.data)
 
     return response.data
   } catch (err: any) {

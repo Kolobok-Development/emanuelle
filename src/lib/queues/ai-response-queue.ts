@@ -46,25 +46,13 @@ Current user: ${username || 'User'}`;
 
       console.log('Generating AI response for:', companion.name);
       const aiResponse = await generateMessage(messages);
-      
-      let responseText = '';
-      if (aiResponse && aiResponse.choices && aiResponse.choices[0]) {
-        responseText = aiResponse.choices[0].message?.content || aiResponse.choices[0].text || 'Sorry, I could not generate a response.';
-      } else if (aiResponse && aiResponse.response) {
-        responseText = aiResponse.response;
-      } else {
-        responseText = `Hello ${username || 'there'}! I'm ${companion.name}. ${companion.personality}`;
-      }
-
-      // Format the response
-      const formattedResponse = `${companion.avatar} <b>${companion.name}</b>\n\n${responseText}\n\n💬 ${companion.personality}\n⚡ Energy cost: ${companion.energyCost}`;
 
       // Send the response to Telegram
-      await sendTelegramMessage(chatId, formattedResponse);
+      await sendTelegramMessage(chatId, aiResponse.message || "");
       
       console.log(`AI response sent successfully for chat ${chatId}`);
       
-      return { success: true, response: formattedResponse };
+      return { success: true, response: aiResponse.message };
       
     } catch (error) {
       console.error(`Error processing AI response job for chat ${chatId}:`, error);
