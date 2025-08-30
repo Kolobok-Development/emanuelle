@@ -1,4 +1,5 @@
 import { prisma } from './prisma';
+import { AICompanionService, AICompanion } from './ai-companions';
 
 export interface ConversationMessage {
   role: 'USER' | 'ASSISTANT' | 'SYSTEM';
@@ -40,7 +41,7 @@ export class ConversationService {
     }));
   }
 
-  static async getOrCreateChat(chatId: number, telegramUserId: number, username?: string): Promise<string> {
+  static async getOrCreateChat(chatId: number, telegramUserId: number, username?: string, companionName?: string): Promise<string> {
     try {
       let user = await prisma.users.findUnique({
         where: { telegram_id: BigInt(telegramUserId) }
@@ -56,10 +57,16 @@ export class ConversationService {
         console.log(`Created new user with telegram ID: ${telegramUserId}`);
       }
 
+      let companionId: string | null = null;
+      if (companionName) {
+        const companion = await AICompanionService.getCompanionByName(companionName);
+        companionId = companion?.id || null;
+      }
+
       let chat = await prisma.chat.findFirst({
         where: {
           user_id: user.id,
-          title: `Chat ${chatId}`, 
+          title: `Chat ${chatId}`,
           is_active: true
         }
       });
@@ -69,10 +76,17 @@ export class ConversationService {
           data: {
             user_id: user.id,
             title: `Chat ${chatId}`,
+            companion_id: companionId,
             is_active: true
           }
         });
-        console.log(`Created new chat ${chatId} for user: ${user.id}`);
+        console.log(`Created new chat ${chatId} for user: ${user.id} with companion: ${companionId || 'none'}`);
+      } else if (companionId && chat.companion_id !== companionId) {
+        chat = await prisma.chat.update({
+          where: { id: chat.id },
+          data: { companion_id: companionId }
+        });
+        console.log(`Updated chat ${chatId} companion to: ${companionId}`);
       }
 
       return chat.id;
@@ -191,6 +205,34 @@ export class ConversationService {
     } catch (error) {
       console.error('Error getting conversation summary:', error);
       return "Unable to retrieve conversation context.";
+    }
+  }
+
+  static async getChatCompanion(chatId: string): Promise<AICompanion | null> {
+    try {
+      const chat = await prisma.chat.findUnique({
+        where: { id: chatId },
+        include: { companion: true }
+      });
+      
+      return chat?.companion || null;
+    } catch (error) {
+      console.error('Error getting chat companion:', error);
+      return null;
+    }
+  }
+
+  static async setChatCompanion(chatId: string, companionId: string): Promise<boolean> {
+    try {
+      await prisma.chat.update({
+        where: { id: chatId },
+        data: { companion_id: companionId }
+      });
+      console.log(`Set companion ${companionId} for chat: ${chatId}`);
+      return true;
+    } catch (error) {
+      console.error('Error setting chat companion:', error);
+      return false;
     }
   }
 }

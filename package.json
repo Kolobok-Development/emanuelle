@@ -7,7 +7,8 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "queue:worker": "tsx src/lib/queues/processor.ts"
+    "queue:worker": "tsx src/lib/queues/processor.ts",
+    "seed:companions": "tsx scripts/seed-companions.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.14.0",

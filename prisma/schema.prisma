@@ -45,14 +45,16 @@ model Session {
 }
 
 model Chat {
-  id         String    @id @default(uuid())
-  user_id    String
-  title      String?
-  is_active  Boolean   @default(true)
-  created_at DateTime  @default(now())
-  updated_at DateTime  @updatedAt
-  user       Users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  messages   Message[]
+  id              String        @id @default(uuid())
+  user_id         String
+  companion_id    String?
+  title           String?
+  is_active       Boolean       @default(true)
+  created_at      DateTime      @default(now())
+  updated_at      DateTime      @updatedAt
+  user            Users         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  companion       AICompanion?  @relation(fields: [companion_id], references: [id], onDelete: SetNull)
+  messages        Message[]
 }
 
 model Message {
@@ -76,6 +78,30 @@ model SubscriptionHistory {
   expires_at     DateTime
   created_at     DateTime         @default(now())
   user           Users            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model AICompanion {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  avatar      String
+  description String
+  personality String
+  energyCost  Int      @default(5)
+  isPremium   Boolean  @default(false)
+  subscriptionTier SubscriptionTier @default(FREE)
+  isActive    Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  chats       Chat[]
+  companionSelections CompanionSelection[]
+}
+
+model CompanionSelection {
+  id                String       @id @default(uuid())
+  telegram_user_id  BigInt       @unique
+  companion_id      String
+  selected_at       DateTime     @default(now())
+  companion         AICompanion  @relation(fields: [companion_id], references: [id], onDelete: Cascade)
 }
 
 enum SubscriptionTier {

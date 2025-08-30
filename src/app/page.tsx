@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRawInitData, init, miniApp, backButton, closingBehavior } from '@telegram-apps/sdk-react';
 import { Card, Button, Badge } from '@telegram-apps/telegram-ui';
-import { AI_COMPANIONS, AICompanion } from '@/data/ai-companions';
+import { AICompanion } from '@/lib/ai-companions';
 
 export default function Home() {
   const [selectedCompanion, setSelectedCompanion] = useState<AICompanion | null>(null);
   const [showChat, setShowChat] = useState(false);
+  const [companions, setCompanions] = useState<AICompanion[]>([]);
   const [user, setUser] = useState<{
     id: number;
     telegram_id: number;
@@ -21,6 +22,7 @@ export default function Home() {
     };
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [companionsLoading, setCompanionsLoading] = useState(true);
   const rawInitData = useRawInitData();
 
   useEffect(() => {
@@ -96,6 +98,60 @@ export default function Home() {
 
     authenticateUser();
   }, [rawInitData]);
+
+  useEffect(() => {
+    const fetchCompanions = async () => {
+      try {
+        setCompanionsLoading(true);
+        const response = await fetch('/api/ai-companions');
+        if (response.ok) {
+          const data = await response.json();
+          setCompanions(data.companions || []);
+        }
+      } catch (error) {
+        console.error('Error fetching companions:', error);
+      } finally {
+        setCompanionsLoading(false);
+      }
+    };
+
+    fetchCompanions();
+  }, []);
+
+  const handleStartChat = async (companion: AICompanion) => {
+    try {
+      const response = await fetch('/api/bot/send-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          telegramUserId: user?.telegram_id,
+          companionName: companion.name,
+        }),
+      });
+
+      if (response.ok) {
+        console.log(`Started chat with ${companion.name}`);
+        
+        if (miniApp.close.isAvailable()) {
+          miniApp.close();
+        } else {
+          try {
+            window.close();
+          } catch (e) {
+            alert(`Chat started with ${companion.name}! Check your Telegram chat.`);
+          }
+        }
+      } else {
+        console.error('Failed to start chat');
+        alert('Failed to start chat. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error starting chat:', error);
+      alert('Error starting chat. Please try again.');
+    }
+  };
 
   const handleCompanionSelect = (companion: AICompanion) => {
     setSelectedCompanion(companion);
@@ -173,7 +229,7 @@ export default function Home() {
                 {selectedCompanion.name}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {selectedCompanion.personality}
+                {selectedCompanion.description}
               </p>
             </div>
 
@@ -216,7 +272,7 @@ export default function Home() {
                       mode="filled" 
                       stretched
                       className="bg-gradient-to-r from-primary-500 to-secondary-500"
-                      onClick={() => alert(`This would start a real chat with ${selectedCompanion.name}!`)}
+                      onClick={() => handleStartChat(selectedCompanion)}
                     >
                       Start Chat
                     </Button>
@@ -264,9 +320,30 @@ export default function Home() {
 
         {/* AI Companions Grid */}
         <div className="mb-8">
-          <h2 className="text-2xl font-semibold mb-4">Choose Your AI Companion</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {AI_COMPANIONS.filter(c => c.subscriptionTier === user.subscription_tier || c.subscriptionTier === 'FREE').map((companion) => (
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-semibold">Choose Your AI Companion</h2>
+            <Button 
+              mode="outline"
+              onClick={() => window.location.href = '/companions'}
+              className="text-sm"
+            >
+              View All Companions
+            </Button>
+          </div>
+          {companionsLoading ? (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-primary-500 to-secondary-500 flex items-center justify-center animate-spin">
+                <span className="text-white text-2xl">⚙️</span>
+              </div>
+              <p className="text-muted-foreground">Loading companions...</p>
+            </div>
+          ) : companions.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">No companions found. Please check back later.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {companions.filter(c => c.subscriptionTier === user.subscription_tier || c.subscriptionTier === 'FREE').map((companion) => (
               <Card 
                 key={companion.id} 
                 className="cursor-pointer hover:shadow-lg transition-shadow"
@@ -311,12 +388,13 @@ export default function Home() {
                     >
                       Chat Now
                     </Button>
-                  </div>
-                </Card.Cell>
-              </Card>
-            ))}
-          </div>
-        </div>
+                                     </div>
+                 </Card.Cell>
+               </Card>
+             ))}
+             </div>
+           )}
+         </div>
 
         {user.subscription_tier === 'FREE' && (
           <Card className="max-w-md mx-auto">

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AI_COMPANIONS } from '@/data/ai-companions';
+import { AICompanionService, AICompanion } from '@/lib/ai-companions';
 import { queueAIResponse } from '@/lib/queues/ai-response-queue';
 import { sendTelegramMessage, sendChatAction } from '@/lib/telegram';
 import { ConversationService } from '@/lib/conversation';
+import { prisma } from '@/lib/prisma';
 
 interface TelegramMessage {
   message_id: number;
@@ -97,32 +98,74 @@ async function handleMessage(message: TelegramMessage) {
   }
 }
 
-async function determineCompanionAndRespond(chatId: number, text: string, username?: string, telegramUserId?: number): Promise<Companion | null> {
+async function determineCompanionAndRespond(chatId: number, text: string, username?: string, telegramUserId?: number): Promise<AICompanion | null> {
   if (text.startsWith('/')) {
     await handleCommand(chatId, text, username);
     return null;
   }
 
-  const mentionedCompanion = getMentionedCompanion(text);
+  const mentionedCompanion = await getMentionedCompanion(text);
   
   if (mentionedCompanion) {
+    if (telegramUserId) {
+      try {
+        const dbChatId = await ConversationService.getOrCreateChat(chatId, telegramUserId, username);
+        await ConversationService.setChatCompanion(dbChatId, mentionedCompanion.id);
+        console.log(`Switched conversation to ${mentionedCompanion.name}`);
+      } catch (error) {
+        console.error('Error setting chat companion:', error);
+      }
+    }
     return mentionedCompanion;
   }
 
-  return AI_COMPANIONS.find(c => c.id === 'emanuelle') || null;
+  if (telegramUserId) {
+    try {
+      const recentSelection = await prisma.companionSelection.findUnique({
+        where: { telegram_user_id: BigInt(telegramUserId) },
+        include: { companion: true }
+      });
+      
+      if (recentSelection && recentSelection.companion) {
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        if (recentSelection.selected_at > fiveMinutesAgo) {
+          console.log(`Using recent companion selection: ${recentSelection.companion.name}`);
+          
+          try {
+            const dbChatId = await ConversationService.getOrCreateChat(chatId, telegramUserId, username);
+            await ConversationService.setChatCompanion(dbChatId, recentSelection.companion.id);
+          } catch (error) {
+            console.error('Error setting chat companion:', error);
+          }
+          
+          return recentSelection.companion;
+        }
+      }
+    } catch (error) {
+      console.error('Error checking companion selection:', error);
+    }
+  }
+
+  console.log('No companion context found, defaulting to Emanuelle');
+  return await AICompanionService.getCompanionByName('Emanuelle');
 }
 
-function getMentionedCompanion(message: string): Companion | null {
-  const lowerMessage = message.toLowerCase();
-  
-  for (const companion of AI_COMPANIONS) {
-    if (lowerMessage.includes(companion.name.toLowerCase()) || 
-        lowerMessage.includes(companion.id.toLowerCase()) ||
-        lowerMessage.includes('chat with ' + companion.name.toLowerCase()) ||
-        lowerMessage.includes('talk to ' + companion.name.toLowerCase()) ||
-        lowerMessage.includes('switch to ' + companion.name.toLowerCase())) {
-      return companion;
+async function getMentionedCompanion(message: string): Promise<AICompanion | null> {
+  try {
+    const companions = await AICompanionService.getAllCompanions();
+    const lowerMessage = message.toLowerCase();
+    
+    for (const companion of companions) {
+      if (lowerMessage.includes(companion.name.toLowerCase()) || 
+          lowerMessage.includes(companion.id.toLowerCase()) ||
+          lowerMessage.includes('chat with ' + companion.name.toLowerCase()) ||
+          lowerMessage.includes('talk to ' + companion.name.toLowerCase()) ||
+          lowerMessage.includes('switch to ' + companion.name.toLowerCase())) {
+        return companion;
+      }
     }
+  } catch (error) {
+    console.error('Error getting mentioned companion:', error);
   }
   
   return null;
@@ -138,12 +181,18 @@ async function handleCommand(chatId: number, command: string, username?: string,
     const helpMessage = `🤖 <b>Available Commands:</b>\n\n/start - Welcome message\n/help - Show this help\n/companions - List AI companions\n/clear - Clear conversation history\n\n💡 <b>Tips:</b>\n• Mention a companion by name to chat with them\n• Example: "Chat with Sophia" or "Talk to Luna"\n• Each companion has unique personality and energy cost\n• Your conversations are remembered for context`;
     await sendTelegramMessage(chatId, helpMessage);
   } else if (lowerCommand === '/companions') {
-    const companionsList = AI_COMPANIONS.map(c => 
-      `${c.avatar} <b>${c.name}</b> - ${c.personality} (⚡ ${c.energyCost})`
-    ).join('\n\n');
-    
-    const companionsMessage = `🤖 <b>Available AI Companions:</b>\n\n${companionsList}\n\n💡 Mention any companion by name to start chatting with them!`;
-    await sendTelegramMessage(chatId, companionsMessage);
+    try {
+      const companions = await AICompanionService.getAllCompanions();
+      const companionsList = companions.map(c => 
+        `${c.avatar} <b>${c.name}</b> - ${c.description} (⚡ ${c.energyCost})`
+      ).join('\n\n');
+      
+      const companionsMessage = `🤖 <b>Available AI Companions:</b>\n\n${companionsList}\n\n💡 Mention any companion by name to start chatting with them!`;
+      await sendTelegramMessage(chatId, companionsMessage);
+    } catch (error) {
+      console.error('Error fetching companions for command:', error);
+      await sendTelegramMessage(chatId, '❌ Unable to fetch companions. Please try again.');
+    }
   } else if (lowerCommand === '/clear') {
     if (telegramUserId) {
       try {
