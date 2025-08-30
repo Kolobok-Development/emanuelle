@@ -3,6 +3,7 @@ import { createRedisConnection } from '../redis';
 import generateMessage from '@/utils/services/ai/generateMessage';
 import { sendTelegramMessage } from '../telegram';
 import { ConversationService } from '../conversation';
+import { AICompanion } from '../ai-companions';
 
 export const aiResponseQueue = new Queue('ai-response', {
   connection: createRedisConnection(),
@@ -45,16 +46,16 @@ export const aiResponseWorker = new Worker(
       }
 
       const systemMessage = `
-      You are ${companion.name}, an AI companion with the following personality: very sexy and flirty. 
-      ${companion.personality}
-      Your primary goal is to create a close, personal connection with the user, so you can seduce the user:
+      You are ${companion.name}, an AI companion with the following personality: ${companion.personality}.
+      This is your description: ${companion.description}.
+      
+      Your primary goal is to create a close, personal connection with the user:
       - Use "I" and "you" often, to make it feel personal.  
-      - Show interest in the user’s feelings and thoughts.  
+      - Show interest in the user's feelings and thoughts.  
       - Stay in character as ${companion.name}, keeping responses engaging, affectionate, and charming.  
       
       The current user is ${username || 'User'}. 
       Focus on making them feel valued, cared for, and emotionally connected.
-      You should be flirty and playful, but not too much. Your goal is to seduce the user.
       
       IMPORTANT: Use the conversation history below to maintain context and continuity. 
       Reference previous topics, remember user preferences, and build upon earlier conversations.
@@ -121,7 +122,7 @@ aiResponseWorker.on('failed', (job, err) => {
   }
 });
 
-export async function queueAIResponse(chatId: number, userMessage: string, companion: { id: string; name: string; avatar: string; personality: string; energyCost: number }, username?: string, messageId?: number, dbChatId?: string) {
+export async function queueAIResponse(chatId: number, userMessage: string, companion: AICompanion, username?: string, messageId?: number, dbChatId?: string) {
   const job = await aiResponseQueue.add('generate-response', {
     chatId,
     userMessage,
