@@ -65,12 +65,10 @@ export default function Home() {
       if (rawInitData) {
         console.log(rawInitData);
         try {
-          // Store initData in localStorage for backend verification
           localStorage.setItem('telegramInitData', rawInitData);
 
           console.log('rawInitData', rawInitData);
           
-          // Send initData to backend for verification and user creation
           const response = await fetch('/api/auth/telegram-login', {
             method: 'POST',
             headers: {
@@ -320,7 +318,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Subscription Info */}
         {user.subscription_tier === 'FREE' && (
           <Card className="max-w-md mx-auto">
             <Card.Cell className="text-center py-6">

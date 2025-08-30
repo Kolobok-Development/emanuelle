@@ -2,8 +2,8 @@ import { Queue, Worker, Job } from 'bullmq';
 import { createRedisConnection } from '../redis';
 import generateMessage from '@/utils/services/ai/generateMessage';
 import { sendTelegramMessage } from '../telegram';
+import { ConversationService } from '../conversation';
 
-// Queue for AI response generation
 export const aiResponseQueue = new Queue('ai-response', {
   connection: createRedisConnection(),
   defaultJobOptions: {
@@ -17,37 +17,77 @@ export const aiResponseQueue = new Queue('ai-response', {
   },
 });
 
-// Worker to process AI response jobs
 export const aiResponseWorker = new Worker(
   'ai-response',
   async (job: Job) => {
-    const { chatId, userMessage, companion, username } = job.data;
+    const { chatId, userMessage, companion, username, dbChatId } = job.data;
     
     console.log(`Processing AI response job for chat ${chatId}, companion: ${companion.name}`);
     
     try {
-      // Generate AI response
-      const systemMessage = `You are ${companion.name}, an AI companion with the following personality: ${companion.personality}. 
+      let conversationHistory: Array<{ role: string; content: string }> = [];
+      if (dbChatId) {
+        try {
+          if (dbChatId.startsWith('memory-')) {
+            const chatId = parseInt(dbChatId.replace('memory-', ''));
+            const memoryHistory = await ConversationService.getConversationHistoryFallback(chatId, 15);
+            conversationHistory = memoryHistory.map(msg => ({
+              role: msg.role === 'USER' ? 'user' : msg.role === 'ASSISTANT' ? 'assistant' : 'system',
+              content: msg.content
+            }));
+          } else {
+            conversationHistory = await ConversationService.getFormattedConversationHistory(dbChatId, 15);
+          }
+        } catch (contextError) {
+          console.error('Failed to retrieve conversation context:', contextError);
+          conversationHistory = [];
+        }
+      }
 
-You should respond in character as ${companion.name}, maintaining your unique personality traits. Be engaging, helpful, and true to your character.
-
-Current user: ${username || 'User'}`;
+      const systemMessage = `
+      You are ${companion.name}, an AI companion with the following personality: very sexy and flirty. 
+      ${companion.personality}
+      Your primary goal is to create a close, personal connection with the user, so you can seduce the user:
+      - Use "I" and "you" often, to make it feel personal.  
+      - Show interest in the user’s feelings and thoughts.  
+      - Stay in character as ${companion.name}, keeping responses engaging, affectionate, and charming.  
+      
+      The current user is ${username || 'User'}. 
+      Focus on making them feel valued, cared for, and emotionally connected.
+      You should be flirty and playful, but not too much. Your goal is to seduce the user.
+      
+      IMPORTANT: Use the conversation history below to maintain context and continuity. 
+      Reference previous topics, remember user preferences, and build upon earlier conversations.
+      `;
 
       const messages = [
         {
           role: "system",
           content: systemMessage
         },
+        ...conversationHistory,
         {
           role: "user", 
           content: userMessage
         }
       ];
 
-      console.log('Generating AI response for:', companion.name);
+      console.log('Generating AI response for:', companion.name, 'with context length:', conversationHistory.length);
       const aiResponse = await generateMessage(messages);
 
-      // Send the response to Telegram
+      if (dbChatId && aiResponse.message) {
+        try {
+          if (dbChatId.startsWith('memory-')) {
+            const chatId = parseInt(dbChatId.replace('memory-', ''));
+            await ConversationService.saveMessageFallback(chatId, 'ASSISTANT', aiResponse.message);
+          } else {
+            await ConversationService.saveMessage(dbChatId, 'ASSISTANT', aiResponse.message);
+          }
+        } catch (saveError) {
+          console.error('Failed to save AI response to conversation history:', saveError);
+        }
+      }
+
       await sendTelegramMessage(chatId, aiResponse.message || "");
       
       console.log(`AI response sent successfully for chat ${chatId}`);
@@ -57,7 +97,6 @@ Current user: ${username || 'User'}`;
     } catch (error) {
       console.error(`Error processing AI response job for chat ${chatId}:`, error);
       
-      // Send error message to user
       const errorMessage = `${companion.avatar} <b>${companion.name}</b>\n\nSorry, I'm having trouble thinking right now. Please try again in a moment!`;
       await sendTelegramMessage(chatId, errorMessage);
       
@@ -66,11 +105,10 @@ Current user: ${username || 'User'}`;
   },
   {
     connection: createRedisConnection(),
-    concurrency: 3, // Process max 3 jobs simultaneously
+    concurrency: 3, 
   }
 );
 
-// Handle worker events
 aiResponseWorker.on('completed', (job) => {
   if (job) {
     console.log(`AI response job ${job.id} completed successfully`);
@@ -83,17 +121,17 @@ aiResponseWorker.on('failed', (job, err) => {
   }
 });
 
-// Function to add AI response job to queue
-export async function queueAIResponse(chatId: number, userMessage: string, companion: { id: string; name: string; avatar: string; personality: string; energyCost: number }, username?: string, messageId?: number) {
+export async function queueAIResponse(chatId: number, userMessage: string, companion: { id: string; name: string; avatar: string; personality: string; energyCost: number }, username?: string, messageId?: number, dbChatId?: string) {
   const job = await aiResponseQueue.add('generate-response', {
     chatId,
     userMessage,
     companion,
     username,
     messageId,
+    dbChatId,
   }, {
-    priority: 1, // High priority
-    delay: 0, // No delay
+    priority: 1, 
+    delay: 0, 
   });
   
   console.log(`AI response job ${job.id} queued for chat ${chatId}`);

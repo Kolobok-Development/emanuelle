@@ -2,7 +2,6 @@ import { aiResponseWorker } from './ai-response-queue';
 
 console.log('🚀 Starting AI Response Queue Worker...');
 
-// Keep the worker alive
 process.on('SIGINT', async () => {
   console.log('🛑 Shutting down AI Response Worker...');
   await aiResponseWorker.close();
