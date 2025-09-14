@@ -1,3 +1,5 @@
+// Types for authentication/session flows
+
 export interface TelegramUser {
   id: number;
   first_name: string;
@@ -5,21 +7,6 @@ export interface TelegramUser {
   username?: string;
   language_code?: string;
   allows_write_to_pm?: boolean;
-}
-
-export interface User {
-  id: string;
-  telegram_id: bigint;
-  username?: string;
-  first_name?: string;
-  last_name?: string;
-  gender?: string;
-  isTermsPolicyAccepted: boolean;
-  subscription_tier: SubscriptionTier;
-  subscription_expires?: Date;
-  created_at: Date;
-  updated_at: Date;
-  settings?: UserSettings;
 }
 
 export interface UserSettings {
@@ -84,11 +71,12 @@ export enum ChatRole {
   SYSTEM = 'SYSTEM'
 }
 
-export interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  isLoading: boolean;
-  login: (telegramUser: TelegramUser) => Promise<void>;
-  logout: () => Promise<void>;
-  refreshSession: () => Promise<void>;
+export interface ValidatedData {
+  [key: string]: string
+}
+
+export interface ValidationResult {
+  validatedData: ValidatedData | null
+  user: TelegramUser | null
+  message: string
 }

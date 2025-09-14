@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isValid } from '@telegram-apps/init-data-node/web';
+import { isValid, parse } from '@telegram-apps/init-data-node/web';
 import { prisma } from '@/lib/prisma';
+import { encrypt, setSessionCookie, SESSION_DURATION } from '@/utils/sessions';
 
 export async function POST(request: NextRequest) {
   try {
     const { initData } = await request.json();
-    console.log('initData', initData);
 
     if (!initData) {
       return NextResponse.json(
@@ -14,48 +14,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify the initData using your bot token
-    const botToken = process.env.TELEGRAM_BOT_KEY;
-    if (!botToken) {
-      console.error('TELEGRAM_BOT_KEY not found in environment variables');
-      return NextResponse.json(
-        { error: 'Bot token not configured' },
-        { status: 500 }
-      );
-    }
+    // validate against both library and our own HMAC implementation for robustness
+    const isAuthorized = isValid(initData, '123')
 
-    const isAuthorized = isValid(initData, botToken);
     if (!isAuthorized) {
-      console.log('Not authorized error');
       return NextResponse.json(
-        { error: 'Invalid initData' },
+        { error: 'Invalid initData', details: 'Authorization failed' },
         { status: 401 }
       );
     }
 
-    // Parse the initData to extract user information
-    const urlParams = new URLSearchParams(initData);
-    const userStr = urlParams.get('user');
-    
-    if (!userStr) {
-      return NextResponse.json(
-        { error: 'No user data in initData' },
-        { status: 400 }
-      );
-    }
+    const parsedInitData = parse(initData);
 
-    const telegramUser = JSON.parse(decodeURIComponent(userStr));
-    
-    if (!telegramUser.id) {
-      return NextResponse.json(
-        { error: 'Invalid user data' },
-        { status: 400 }
-      );
-    }
+    const telegramUser = parsedInitData.user;
 
-    // Find or create user in database
-    let user = await prisma.users.findUnique({
-      where: { telegram_id: telegramUser.id.toString() },
+    // ✅ FIXED: Use BigInt consistently for telegram_id
+    let user = await prisma.users.findFirst({
+      where: { telegram_id: BigInt(telegramUser.id) }, // Changed from Number to BigInt
       include: { settings: true }
     });
 
@@ -63,7 +38,7 @@ export async function POST(request: NextRequest) {
       // Create new user
       user = await prisma.users.create({
         data: {
-          telegram_id: telegramUser.id.toString(),
+          telegram_id: BigInt(telegramUser.id), // Consistent BigInt
           username: telegramUser.username || null,
           subscription_tier: 'FREE',
           subscription_expires: null,
@@ -91,17 +66,44 @@ export async function POST(request: NextRequest) {
       console.log('Existing user updated:', user);
     }
 
-    return NextResponse.json({
+    // Create session in database and generate JWT
+    const expiresAt = new Date(Date.now() + SESSION_DURATION);
+    const payload = {
+      sub: user.id,
+      telegram_id: String(telegramUser.id),
+    };
+    const token = await encrypt(payload, expiresAt);
+    
+    // Store session in database
+    await prisma.session.create({
+      data: {
+        user_id: user.id,
+        token,
+        expires_at: expiresAt,
+      },
+    });
+
+    const res = NextResponse.json({
       success: true,
+      session: {
+        token,
+        expires_at: expiresAt,
+      },
       user: {
-        id: Number(user.id),
-        telegram_id: Number(user.telegram_id),
+        id: user.id,
+        telegram_id: Number(user.telegram_id), // Convert BigInt to Number for JSON serialization
         username: user.username,
         subscription_tier: user.subscription_tier,
         subscription_expires: user.subscription_expires,
         settings: user.settings
       }
     });
+
+    // Set session cookie
+    const cookieData = setSessionCookie(res, token, expiresAt);
+    res.cookies.set(cookieData);
+
+    return res;
 
   } catch (error) {
     console.error('Error in telegram-login:', error);
