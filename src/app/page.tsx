@@ -42,28 +42,48 @@ export default function Home() {
           <Spinner size="m" />
         </div>
       ) : isAuthenticated && user ? (
-        <div className="p-4 space-y-6">
-          {/* Header */}
-          <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700/50">
-            <div className="p-6">
+        <div className="space-y-0">
+          {/* Header with Night Sky Background */}
+          <div className="relative bg-gradient-to-b from-black via-gray-900 to-gray-800 min-h-[200px] overflow-hidden">
+            {/* Stars */}
+            <div className="absolute inset-0">
+              <div className="absolute top-4 left-8 w-1 h-1 bg-white rounded-full opacity-80 animate-pulse"></div>
+              <div className="absolute top-12 left-16 w-1 h-1 bg-white rounded-full opacity-60"></div>
+              <div className="absolute top-8 left-32 w-1 h-1 bg-white rounded-full opacity-90 animate-pulse delay-1000"></div>
+              <div className="absolute top-16 left-48 w-1 h-1 bg-white rounded-full opacity-70"></div>
+              <div className="absolute top-6 left-64 w-1 h-1 bg-white rounded-full opacity-80 animate-pulse delay-2000"></div>
+              <div className="absolute top-20 left-80 w-1 h-1 bg-white rounded-full opacity-60"></div>
+              <div className="absolute top-10 left-96 w-1 h-1 bg-white rounded-full opacity-90"></div>
+              <div className="absolute top-14 right-32 w-1 h-1 bg-white rounded-full opacity-70 animate-pulse delay-500"></div>
+              <div className="absolute top-18 right-16 w-1 h-1 bg-white rounded-full opacity-80"></div>
+              <div className="absolute top-8 right-8 w-1 h-1 bg-white rounded-full opacity-60 animate-pulse delay-1500"></div>
+            </div>
+            
+            {/* Header Content */}
+            <div className="relative z-10 p-6 pt-12">
               <div className="flex justify-between items-center">
                 <div>
-                  <Headline className="text-white mb-1">
+                  <Headline className="text-white mb-1 text-3xl font-bold">
                     Welcome, {user.username || 'User'}
                   </Headline>
-                  <Text className="text-gray-400 text-sm">
+                  <Text className="text-gray-300 text-base">
                     Choose your AI companion
                   </Text>
                 </div>
                 <div className="text-right">
-                  <Badge type="number" className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-full">
-                    ⚡ {energyBalance}
-                  </Badge>
-                  <Text className="text-gray-400 text-xs mt-1">Energy</Text>
+                  <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-lg shadow-lg border border-purple-500/30">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-yellow-400 text-xl">⚡</span>
+                      <span className="text-white font-bold text-xl">{energyBalance}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </Card>
+          </div>
+
+          {/* Companions Section */}
+          <div className="p-4 space-y-6">
 
           {/* AI Companions List */}
           <div className="space-y-4">
@@ -122,6 +142,7 @@ export default function Home() {
                 </Card>
               ))}
             </List>
+          </div>
           </div>
         </div>
       ) : (
