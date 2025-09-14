@@ -5,12 +5,9 @@ import { AI_COMPANIONS, type AICompanion } from '@/data/ai-companions';
 import { 
   Card, 
   Button, 
-  Badge, 
   Text, 
   Title, 
-  Headline, 
-  Spinner,
-  List
+  Spinner
 } from '@telegram-apps/telegram-ui';
 import Image from 'next/image';
 
@@ -42,112 +39,188 @@ export default function Home() {
           <Spinner size="m" />
         </div>
       ) : isAuthenticated && user ? (
-        <div className="space-y-0">
-          {/* Header with Night Sky Background */}
-          <div className="relative bg-gradient-to-b from-black via-gray-900 to-gray-800 min-h-[200px] overflow-hidden">
+        <div className="flex flex-col h-screen">
+          {/* Header with Night Sky */}
+          <div className="relative bg-gradient-to-b from-black via-gray-900 to-gray-800 min-h-[140px] overflow-hidden">
             {/* Stars */}
             <div className="absolute inset-0">
-              <div className="absolute top-4 left-8 w-1 h-1 bg-white rounded-full opacity-80 animate-pulse"></div>
-              <div className="absolute top-12 left-16 w-1 h-1 bg-white rounded-full opacity-60"></div>
-              <div className="absolute top-8 left-32 w-1 h-1 bg-white rounded-full opacity-90 animate-pulse delay-1000"></div>
-              <div className="absolute top-16 left-48 w-1 h-1 bg-white rounded-full opacity-70"></div>
-              <div className="absolute top-6 left-64 w-1 h-1 bg-white rounded-full opacity-80 animate-pulse delay-2000"></div>
-              <div className="absolute top-20 left-80 w-1 h-1 bg-white rounded-full opacity-60"></div>
-              <div className="absolute top-10 left-96 w-1 h-1 bg-white rounded-full opacity-90"></div>
-              <div className="absolute top-14 right-32 w-1 h-1 bg-white rounded-full opacity-70 animate-pulse delay-500"></div>
-              <div className="absolute top-18 right-16 w-1 h-1 bg-white rounded-full opacity-80"></div>
-              <div className="absolute top-8 right-8 w-1 h-1 bg-white rounded-full opacity-60 animate-pulse delay-1500"></div>
+              <div className="absolute top-4 left-8 w-1 h-1 bg-white rounded-full opacity-60 animate-pulse"></div>
+              <div className="absolute top-12 left-20 w-0.5 h-0.5 bg-white rounded-full opacity-40"></div>
+              <div className="absolute top-8 left-36 w-1 h-1 bg-white rounded-full opacity-70"></div>
+              <div className="absolute top-16 left-52 w-0.5 h-0.5 bg-white rounded-full opacity-30"></div>
+              <div className="absolute top-6 left-68 w-1 h-1 bg-white rounded-full opacity-50"></div>
+              <div className="absolute top-14 left-84 w-0.5 h-0.5 bg-white rounded-full opacity-40"></div>
+              <div className="absolute top-10 right-32 w-1 h-1 bg-white rounded-full opacity-60"></div>
+              <div className="absolute top-18 right-16 w-0.5 h-0.5 bg-white rounded-full opacity-35"></div>
+              <div className="absolute top-4 right-8 w-1 h-1 bg-white rounded-full opacity-45"></div>
             </div>
             
             {/* Header Content */}
-            <div className="relative z-10 p-6 pt-12">
+            <div className="relative z-10 p-4 pt-6">
               <div className="flex justify-between items-center">
-                <div>
-                  <Headline className="text-white mb-1 text-3xl font-bold">
-                    Welcome, {user.username || 'User'}
-                  </Headline>
-                  <Text className="text-gray-300 text-base">
-                    Choose your AI companion
-                  </Text>
+                <div className="flex items-center space-x-3">
+                  <button className="text-gray-400 hover:text-white transition-colors">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                  <div className="text-center">
+                    <h1 className="text-white font-bold text-lg">Your Waifu</h1>
+                    <p className="text-gray-400 text-xs">мини-приложение</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-lg shadow-lg border border-purple-500/30">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-yellow-400 text-xl">⚡</span>
-                      <span className="text-white font-bold text-xl">{energyBalance}</span>
+                <button className="text-gray-400 hover:text-white transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                  </svg>
+                </button>
+              </div>
+              
+              {/* User Greeting and Resources */}
+              <div className="mt-4 flex justify-between items-center">
+                <div>
+                  <h2 className="text-white text-lg font-semibold">Привет | {user.username || 'Player'}</h2>
+                  <p className="text-gray-300 text-sm">Пора общаться!</p>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-3 py-2 rounded-full shadow-lg">
+                    <div className="flex items-center space-x-1">
+                      <span className="text-white text-sm">💎</span>
+                      <span className="text-white text-sm font-semibold">5</span>
                     </div>
                   </div>
+                  <div className="bg-gradient-to-r from-purple-600 to-blue-600 px-3 py-2 rounded-full shadow-lg">
+                    <div className="flex items-center space-x-1">
+                      <span className="text-yellow-400 text-sm">⚡</span>
+                      <span className="text-white text-sm font-semibold">{energyBalance}</span>
+                    </div>
+                  </div>
+                  <button className="bg-gradient-to-r from-pink-500 to-pink-600 w-8 h-8 rounded-full flex items-center justify-center shadow-lg hover:scale-105 transition-transform">
+                    <span className="text-white text-sm">+</span>
+                  </button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Companions Section */}
-          <div className="p-4 space-y-6">
+          {/* Character Category Tabs */}
+          <div className="bg-gray-800/50 backdrop-blur-sm px-4 py-3 border-b border-gray-700/50">
+            <div className="flex space-x-2">
+              <button className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 shadow-lg">
+                <span className="text-sm">♀</span>
+                <span className="text-sm font-semibold">ДЕВУШКИ</span>
+              </button>
+              <button className="bg-gray-700/50 text-gray-300 px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-gray-600/50 transition-colors">
+                <span className="text-sm">♂</span>
+                <span className="text-sm font-semibold">ПАРНИ</span>
+              </button>
+            </div>
+          </div>
 
-          {/* AI Companions List */}
-          <div className="space-y-4">
-            <Title className="text-white px-2">AI Companions</Title>
-            <List className="space-y-4">
+          {/* Character Grid */}
+          <div className="flex-1 p-4 overflow-y-auto bg-gradient-to-b from-gray-800/30 to-gray-900/50">
+            <div className="grid grid-cols-2 gap-4">
               {AI_COMPANIONS.map((companion) => (
                 <Card 
                   key={companion.id}
-                  className="bg-gray-800/50 backdrop-blur-sm border-gray-700/50 hover:bg-gray-700/50 transition-all duration-200 cursor-pointer overflow-hidden"
+                  className="bg-gray-800/50 backdrop-blur-sm border-gray-700/50 cursor-pointer hover:bg-gray-700/50 transition-all duration-200 overflow-hidden shadow-lg hover:shadow-xl"
                   onClick={() => handleCompanionSelect(companion)}
                 >
                   <div className="relative">
-                    {/* AI Girl Image */}
-                    <div className="h-64 w-full relative overflow-hidden">
+                    {/* Character Image */}
+                    <div className="h-48 w-full relative overflow-hidden">
                       <Image
                         src={aiGirlImages[companion.id as keyof typeof aiGirlImages] || aiGirlImages.emanuelle}
                         alt={companion.name}
                         fill
                         className="object-cover"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        sizes="(max-width: 768px) 50vw, 25vw"
                       />
                       {/* Gradient overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
                       
                       {/* Energy cost badge */}
-                      <div className="absolute top-4 right-4">
-                        <Badge type="number" className="bg-gray-700/90 text-white px-3 py-1 rounded-full flex items-center space-x-1">
-                          <span className="text-yellow-400">⚡</span>
-                          <span className="text-white text-sm font-medium">{companion.energyCost}</span>
-                        </Badge>
+                      <div className="absolute top-2 right-2">
+                        <div className="bg-gray-900/80 backdrop-blur-sm text-white px-2 py-1 rounded-full flex items-center space-x-1 border border-gray-600/50">
+                          <span className="text-yellow-400 text-xs">⚡</span>
+                          <span className="text-white text-xs font-medium">{companion.energyCost}</span>
+                        </div>
                       </div>
 
                       {/* Premium badge */}
                       {companion.isPremium && (
-                        <div className="absolute top-4 left-4">
-                          <Badge type="dot" className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-3 py-1 rounded-full">
+                        <div className="absolute top-2 left-2">
+                          <div className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
                             {companion.subscriptionTier}
-                          </Badge>
+                          </div>
                         </div>
                       )}
-
-                      {/* Name overlay */}
-                      <div className="absolute bottom-4 left-4 right-4">
-                        <h3 className="text-2xl font-bold text-white mb-2">
-                          {companion.name}
-                        </h3>
-                        <p className="text-gray-200 text-sm mb-1">
-                          {companion.description}
-                        </p>
-                        <p className="text-gray-400 text-xs">
-                          {companion.personality}
-                        </p>
-                      </div>
+                    </div>
+                    
+                    {/* Character Info */}
+                    <div className="p-3">
+                      <h3 className="text-white font-semibold text-sm mb-1">
+                        {companion.name}
+                      </h3>
+                      <p className="text-gray-300 text-xs">
+                        {companion.description}
+                      </p>
                     </div>
                   </div>
                 </Card>
               ))}
-            </List>
+            </div>
           </div>
+
+          {/* Bottom Navigation */}
+          <div className="bg-gray-800/50 backdrop-blur-sm border-t border-gray-700/50 px-4 py-2">
+            <div className="flex justify-around">
+              <button className="flex flex-col items-center space-y-1 py-2">
+                <div className="w-6 h-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded flex items-center justify-center shadow-lg">
+                  <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10 2L3 7v11h4v-6h6v6h4V7l-7-5z"/>
+                  </svg>
+                </div>
+                <span className="text-purple-400 text-xs font-semibold">Главная</span>
+              </button>
+              <button className="flex flex-col items-center space-y-1 py-2 hover:bg-gray-700/30 rounded-lg transition-colors">
+                <div className="w-6 h-6 text-gray-400">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd"/>
+                  </svg>
+                </div>
+                <span className="text-gray-400 text-xs">Чаты</span>
+              </button>
+              <button className="flex flex-col items-center space-y-1 py-2 hover:bg-gray-700/30 rounded-lg transition-colors">
+                <div className="w-6 h-6 text-gray-400">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                  </svg>
+                </div>
+                <span className="text-gray-400 text-xs">Магазин</span>
+              </button>
+              <button className="flex flex-col items-center space-y-1 py-2 hover:bg-gray-700/30 rounded-lg transition-colors">
+                <div className="w-6 h-6 text-gray-400">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd"/>
+                  </svg>
+                </div>
+                <span className="text-gray-400 text-xs">Задания</span>
+              </button>
+              <button className="flex flex-col items-center space-y-1 py-2 hover:bg-gray-700/30 rounded-lg transition-colors">
+                <div className="w-6 h-6 text-gray-400">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"/>
+                  </svg>
+                </div>
+                <span className="text-gray-400 text-xs">Профиль</span>
+              </button>
+            </div>
           </div>
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center h-screen p-6 text-center">
-          <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700/50 max-w-md w-full">
+          <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700/50 max-w-md w-full shadow-xl">
             <div className="p-8">
               <Title className="text-white mb-4">Welcome to Emanuelle</Title>
               <Text className="text-gray-300 mb-8 leading-relaxed">
@@ -156,7 +229,7 @@ export default function Home() {
               <Button 
                 onClick={authenticateUser} 
                 size="l"
-                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-200 transform hover:scale-105"
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-4 px-6 rounded-lg transition-all duration-200 shadow-lg"
               >
                 Login with Telegram
               </Button>

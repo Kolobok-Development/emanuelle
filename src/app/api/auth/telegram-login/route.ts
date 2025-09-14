@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ✅ FIXED: Use BigInt consistently for telegram_id
-    let user = await prisma.users.findFirst({
+    let user = await prisma.users.findFirstOrThrow({
       where: { telegram_id: BigInt(telegramUser.id) }, // Changed from Number to BigInt
       include: { settings: true }
     });

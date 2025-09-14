@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if session exists in database and is not expired
-    const session = await prisma.session.findUnique({
+    const session = await prisma.session.findFirstOrThrow({
       where: { token },
       include: { user: { include: { settings: true } } }
     });
