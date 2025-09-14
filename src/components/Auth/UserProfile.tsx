@@ -2,16 +2,16 @@
 
 import React from 'react';
 import { Button, Avatar, Text, Card } from '@telegram-apps/telegram-ui';
-import { useAuth } from '@/contexts/AppContext';
+import { useAppContext } from '@/contexts/AppContext';
 
 export function UserProfile() {
-  const { user, logout, isLoading } = useAuth();
+  const { user, isLoading } = useAppContext();
 
   if (!user) return null;
 
   const handleLogout = async () => {
     try {
-      await logout();
+      console.log('Logout clicked');
     } catch (error) {
       console.error('Logout failed:', error);
     }

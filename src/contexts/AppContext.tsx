@@ -1,6 +1,6 @@
 'use client';
 import { useSignal, initData } from '@telegram-apps/sdk-react';
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import type { Users, Session } from '@prisma/client';
 
 interface AppContextType {
@@ -10,7 +10,7 @@ interface AppContextType {
   isAuthenticated: boolean;
   authenticateUser: () => Promise<void>;
   refreshSession: () => Promise<void>;
-  logout: () => Promise<void>;
+
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -26,14 +26,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const initDataStateRaw = useSignal(initData.raw);
   const isAuthenticated = !!user && !!session;
 
-  // ✅ FIX: Remove logError dependency to prevent recreation
-  const logError = useCallback((message: string) => {
-    console.error(message);
-    setError(message);
-  }, []); // Empty dependency array
-
-  // ✅ FIX: Stable checkAuthStatus function
-  const checkAuthStatus = useCallback(async () => {
+  // Simple functions - no useCallback needed for internal functions
+  const checkAuthStatus = async () => {
     try {
       const response = await fetch('/api/auth/me', { credentials: 'include' });
       if (response.ok) {
@@ -47,21 +41,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch {
       setUser(null);
       setSession(null);
-      // ✅ FIX: Direct console.error instead of logError to prevent dependency issues
       console.error('Error checking auth status');
       setError('Error checking auth status');
     }
-  }, []); // Empty dependency array - this function is now stable
+  };
 
-  const authenticateUser = useCallback(async () => {
-    // ✅ FIX: Add guard to prevent multiple simultaneous calls
+  const authenticateUser = async () => {
     if (isLoading || loginAttemptedRef.current) return;
     
     try {
       if (!initDataStateRaw) {
-        logError('Telegram raw data is undefined.');
+        console.error('Telegram raw data is undefined.');
+        setError('Telegram raw data is undefined.');
         return;
       }
+      
       setIsLoading(true);
       const res = await fetch('/api/auth/telegram-login', {
         method: 'POST',
@@ -69,22 +63,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         credentials: 'include',
         body: JSON.stringify({ initData: initDataStateRaw }),
       });
+      
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Login failed');
       }
+      
       const data = await res.json();
       setUser(data.user);
       setSession(data.session);
     } catch (e) {
-      logError(e instanceof Error ? e.message : 'Authentication failed');
+      const message = e instanceof Error ? e.message : 'Authentication failed';
+      console.error(message);
+      setError(message);
     } finally {
       setIsLoading(false);
     }
-  }, [initDataStateRaw, logError, isLoading]); // Added isLoading to dependencies
+  };
 
-  // ✅ FIX: Stable refreshSession function
-  const refreshSession = useCallback(async () => {
+  const refreshSession = async () => {
     try {
       const response = await fetch('/api/auth/me', { credentials: 'include' });
       if (response.ok) {
@@ -99,33 +96,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setSession(null);
     }
-  }, []); // Empty dependency array
-
-  const logout = useCallback(async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-    } finally {
-      setUser(null);
-      setSession(null);
-      // ✅ FIX: Reset login attempt flag on logout
-      loginAttemptedRef.current = false;
-    }
-  }, []);
+  };
 
   // Auto-refresh session 5 minutes before expiry
   useEffect(() => {
     if (!session) return;
+    
     const expiresAt = new Date(session.expires_at).getTime();
     const refreshTime = Math.max(expiresAt - Date.now() - 5 * 60 * 1000, 0);
     
-    // ✅ FIX: Don't set timer if refresh time is too short or negative
     if (refreshTime <= 0) return;
     
     const timer = setTimeout(refreshSession, refreshTime);
     return () => clearTimeout(timer);
-  }, [session, refreshSession]);
+  }, [session?.expires_at]); // Only depend on the specific value that matters
 
-  // ✅ FIX: Initial boot - stable dependencies
+  // Initial auth check - only run once
   useEffect(() => {
     if (initializedRef.current) return;
     initializedRef.current = true;
@@ -137,20 +123,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
 
     initialize();
-  }, [checkAuthStatus]); // Now checkAuthStatus is stable
+  }, []); // Empty deps - run once
 
-  // ✅ FIX: Better authentication trigger logic
+  // Auto-login if not authenticated and have telegram data
   useEffect(() => {
-    // Only attempt login once, and only after initial check is complete
-    if (!initializedRef.current || isLoading || isAuthenticated || loginAttemptedRef.current) {
+   
+    if (isLoading || isAuthenticated || loginAttemptedRef.current || !initDataStateRaw) {
       return;
     }
     
-    if (initDataStateRaw) {
-      loginAttemptedRef.current = true;
-      authenticateUser();
-    }
-  }, [isLoading, isAuthenticated, initDataStateRaw, authenticateUser]);
+    loginAttemptedRef.current = true;
+    authenticateUser();
+  }, [isLoading, isAuthenticated, initDataStateRaw]); // Simple deps
 
   const value: AppContextType = {
     user,
@@ -159,7 +143,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated,
     authenticateUser,
     refreshSession,
-    logout,
   };
 
   if (error) return <div>{error}</div>;
@@ -178,4 +161,3 @@ export function useAppContext() {
   }
   return context;
 }
-

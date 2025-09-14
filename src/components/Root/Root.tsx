@@ -6,7 +6,8 @@ import { PropsWithChildren } from "react";
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ErrorPage } from '@/components/ErrorPage';
 import { useDidMount } from '@/hooks/useDidMount';
-import { AuthProvider } from '@/contexts/AppContext';
+import { AppProvider } from "@/contexts/AppContext";
+
 
 function RootInner({ children }: PropsWithChildren) {
   
@@ -21,9 +22,7 @@ function RootInner({ children }: PropsWithChildren) {
             ['macos', 'ios'].includes(lp.tgWebAppPlatform) ? 'ios' : 'base'
           }
         >
-          <AuthProvider>
-            {children}
-          </AuthProvider>
+          <AppProvider>{children}</AppProvider>
         </AppRoot>
     );
   }

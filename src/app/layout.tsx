@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import TelegramSDKInitProvider from "@/components/TelegramSDKInitProvider/TelegramSDK";
 import { AppProvider } from "@/contexts/AppContext";
+import { AppRoot } from "@telegram-apps/telegram-ui";
+import { Root } from "@/components/Root/Root";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,7 +30,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning={true}>
       <body>
         <TelegramSDKInitProvider>
-          <AppProvider>{children}</AppProvider>
+          <Root>{children}</Root>
         </TelegramSDKInitProvider>
       </body>
     </html>
