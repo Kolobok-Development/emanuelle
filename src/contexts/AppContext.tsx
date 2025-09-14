@@ -49,6 +49,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const authenticateUser = async () => {
     if (isLoading || loginAttemptedRef.current) return;
     
+    loginAttemptedRef.current = true;
+    
     try {
       if (!initDataStateRaw) {
         console.error('Telegram raw data is undefined.');
@@ -127,12 +129,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Auto-login if not authenticated and have telegram data
   useEffect(() => {
-   
     if (isLoading || isAuthenticated || loginAttemptedRef.current || !initDataStateRaw) {
       return;
     }
     
-    loginAttemptedRef.current = true;
     authenticateUser();
   }, [isLoading, isAuthenticated, initDataStateRaw]); // Simple deps
 

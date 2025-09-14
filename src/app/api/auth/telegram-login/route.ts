@@ -28,6 +28,13 @@ export async function POST(request: NextRequest) {
 
     const telegramUser = parsedInitData.user;
 
+    if (!telegramUser) {
+      return NextResponse.json(
+        { error: 'Invalid initData', details: 'Telegram user not found' },
+        { status: 401 }
+      );
+    }
+
     // ✅ FIXED: Use BigInt consistently for telegram_id
     let user = await prisma.users.findFirst({
       where: { telegram_id: BigInt(telegramUser.id) }, // Changed from Number to BigInt

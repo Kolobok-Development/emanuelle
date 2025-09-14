@@ -3,10 +3,10 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
-  relationMode = "prisma" 
+  provider     = "postgresql"
+  url          = env("DATABASE_URL")
+  directUrl    = env("DIRECT_URL")
+  relationMode = "prisma"
 }
 
 model Users {
@@ -46,14 +46,15 @@ model Session {
 }
 
 model Chat {
-  id         String    @id @default(uuid())
-  user_id    String
-  title      String?
-  is_active  Boolean   @default(true)
-  created_at DateTime  @default(now())
-  updated_at DateTime  @updatedAt
-  user       Users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  messages   Message[]
+  id           String    @id @default(uuid())
+  user_id      String
+  title        String?
+  is_active    Boolean   @default(true)
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  companion_id String?
+  user         Users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  messages     Message[]
 }
 
 model Message {
@@ -77,6 +78,27 @@ model SubscriptionHistory {
   expires_at     DateTime
   created_at     DateTime         @default(now())
   user           Users            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model AICompanion {
+  id               String           @id
+  name             String           @unique
+  avatar           String
+  description      String
+  personality      String
+  energyCost       Int              @default(5)
+  isPremium        Boolean          @default(false)
+  subscriptionTier SubscriptionTier @default(FREE)
+  isActive         Boolean          @default(true)
+  created_at       DateTime         @default(now())
+  updated_at       DateTime
+}
+
+model CompanionSelection {
+  id               String   @id
+  telegram_user_id BigInt   @unique
+  companion_id     String
+  selected_at      DateTime @default(now())
 }
 
 enum SubscriptionTier {

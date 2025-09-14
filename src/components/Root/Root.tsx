@@ -14,14 +14,8 @@ function RootInner({ children }: PropsWithChildren) {
     const isDark = useSignal(miniApp.isDark);
     const lp = useLaunchParams();
   
-
     return (
-        <AppRoot
-          appearance={isDark ? 'dark' : 'light'}
-          platform={
-            ['macos', 'ios'].includes(lp.tgWebAppPlatform) ? 'ios' : 'base'
-          }
-        >
+        <AppRoot>
           <AppProvider>{children}</AppProvider>
         </AppRoot>
     );
